@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Collettiva Briefing - Emergenza & Impianti</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & JetBrains Mono per codici/date -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .notification-dot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background-color: inherit;
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation & Role Simulator Bar -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
+                
+                <!-- Brand / Title -->
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-lg shadow-inner flex items-center justify-center">
+                        <i data-lucide="shield-alert" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-tight leading-tight flex items-center gap-2">
+                            OPS BRIEFING MANAGER
+                            <span class="text-[10px] font-mono-tech uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">P2P Autonomo</span>
+                        </h1>
+                        <p class="text-xs text-slate-400">Pianificazione Emergenze & Impianti (2026 - 2027)</p>
+                    </div>
+                </div>
+
+                <!-- Role Switcher & Notification Center -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <!-- Simulatore Identità -->
+                    <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm">
+                        <i data-lucide="user-check" class="w-4 h-4 text-emerald-400 mr-2 shrink-0"></i>
+                        <label for="roleSelector" class="text-xs text-slate-400 mr-2 hidden sm:inline">Agisci come:</label>
+                        <select id="roleSelector" class="bg-transparent text-white font-medium focus:outline-none cursor-pointer pr-2 text-xs sm:text-sm">
+                            <!-- Popolato via JS -->
+                        </select>
+                    </div>
+
+                    <!-- Pulsante Notifiche -->
+                    <button id="notifBtn" onclick="toggleNotifDrawer()" class="relative bg-slate-800 hover:bg-slate-700 border border-slate-700 p-2 rounded-lg transition flex items-center gap-2 text-sm">
+                        <i data-lucide="bell" class="w-5 h-5 text-slate-300"></i>
+                        <span class="hidden sm:inline text-xs font-medium">Notifiche</span>
+                        <span id="notifBadge" class="hidden relative flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                            0
+                        </span>
+                    </button>
+
+                    <!-- Pulsante Nuovo Briefing -->
+                    <button onclick="openNewBriefingModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition flex items-center gap-1.5">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Nuovo Briefing</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Banner Informativo Dinamico sull'utente corrente -->
+    <div id="userContextBanner" class="bg-indigo-50 border-b border-indigo-100 px-4 py-2.5 text-xs sm:text-sm text-indigo-900">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+                <span id="userContextText">Stai visualizzando il sistema come <strong>Organizzatore</strong>. Puoi inserire eventi e monitorare lo stato.</span>
+            </div>
+            <div class="text-[11px] text-indigo-600 font-medium">
+                💡 Suggerimento: Cambia utente nel menu in alto a destra per simulare la risposta o la richiesta di cambio turno!
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 space-y-6">
+
+        <!-- KPI / Statistiche Rapide -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase">Totale Briefing</p>
+                    <p id="statTotal" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-slate-100 p-3 rounded-lg text-slate-600">
+                    <i data-lucide="calendar" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-emerald-600 uppercase">Confermati</p>
+                    <p id="statConfirmed" class="text-2xl font-bold text-emerald-700 mt-1">0</p>
+                </div>
+                <div class="bg-emerald-50 p-3 rounded-lg text-emerald-600">
+                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-amber-600 uppercase">In Attesa Conferma</p>
+                    <p id="statPending" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+                </div>
+                <div class="bg-amber-50 p-3 rounded-lg text-amber-600">
+                    <i data-lucide="clock" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-purple-600 uppercase">Sostituzioni P2P</p>
+                    <p id="statSwap" class="text-2xl font-bold text-purple-700 mt-1">0</p>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-lg text-purple-600">
+                    <i data-lucide="repeat" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar Filtri e Vista -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
+            
+            <!-- Ricerca & Filtri -->
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="relative flex-1 sm:w-64">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" id="searchInput" oninput="renderApp()" placeholder="Cerca argomento o militare..." class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                </div>
+
+                <select id="filterPerson" onchange="renderApp()" class="py-2 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="ALL">Tutto il Personale</option>
+                    <!-- Popolato via JS -->
+                </select>
+
+                <select id="filterCategory" onchange="renderApp()" class="py-2 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="ALL">Tutte le Categorie</option>
+                    <option value="EMERGENZA">Emergenze (EN)</option>
+                    <option value="IMPIANTO">Impianti (IT)</option>
+                </select>
+
+                <select id="filterStatus" onchange="renderApp()" class="py-2 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="ALL">Tutti gli Stati</option>
+                    <option value="NOTIFIED">In Attesa Risposta</option>
+                    <option value="CONFIRMED">Confermati</option>
+                    <option value="SWAP_PROPOSED">Sostituzione Proposta</option>
+                </select>
+            </div>
+
+            <!-- Switcher Vista (Lista / Calendario Mensile / Riepilogo Personale) -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 self-end md:self-auto">
+                <button id="btnViewList" onclick="setView('list')" class="px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 bg-white text-slate-800 shadow-sm transition">
+                    <i data-lucide="list" class="w-4 h-4"></i>
+                    <span>Cronologico</span>
+                </button>
+                <button id="btnViewCalendar" onclick="setView('calendar')" class="px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition">
+                    <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                    <span>Calendario</span>
+                </button>
+                <button id="btnViewStats" onclick="setView('stats')" class="px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    <span>Riepilogo Personale</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sezione Vista Cronologica / Lista -->
+        <div id="listViewContainer" class="space-y-6">
+            <!-- Popolato dinamicamente raggruppato per Mese/Anno -->
+        </div>
+
+        <!-- Sezione Vista Calendario Griglia -->
+        <div id="calendarViewContainer" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <button onclick="changeCalendarMonth(-1)" class="p-2 hover:bg-slate-200 rounded-lg transition">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                </button>
+                <h2 id="calendarMonthTitle" class="text-lg font-bold text-slate-800 capitalize">Settembre 2026</h2>
+                <button onclick="changeCalendarMonth(1)" class="p-2 hover:bg-slate-200 rounded-lg transition">
+                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-7 bg-slate-100 border-b border-slate-200 text-center py-2 text-xs font-semibold text-slate-500 uppercase">
+                <div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div>Sab</div><div>Dom</div>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 auto-rows-fr min-h-[500px] divide-x divide-y divide-slate-200">
+                <!-- Celle calendario generate via JS -->
+            </div>
+        </div>
+
+        <!-- Sezione Vista Riepilogo & Conteggio Personale -->
+        <div id="statsViewContainer" class="hidden space-y-4">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="award" class="w-5 h-5 text-blue-600"></i>
+                            Conteggio Briefing per Personale
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Il conteggio si aggiorna in tempo reale anche in caso di sostituzioni accettate.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label for="statsSortSelect" class="text-xs text-slate-500 font-medium">Ordina per:</label>
+                        <select id="statsSortSelect" onchange="renderApp()" class="py-1.5 px-2.5 text-xs border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="COUNT_DESC">Totale Briefing (Decrescente)</option>
+                            <option value="CONFIRMED_DESC">Già Confermati (Decrescente)</option>
+                            <option value="NAME_ASC">Cognome (A - Z)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="personnelStatsList" class="divide-y divide-slate-100">
+                    <!-- Popolato dinamicamente via JS -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Fisso -->
+    <footer class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-xs border-t border-slate-200 py-3 px-4 sm:px-6 lg:px-8 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2 text-xs text-slate-500">
+            <span>OPS Briefing Manager — Gestione Collettiva Emergenza & Impianti</span>
+            <span class="font-medium text-slate-700">Vers. 1.0 creata da Vincenzo PELLEGRINO</span>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- DRAWER NOTIFICHE (Slide-over)                                         -->
+    <!-- ===================================================================== -->
+    <div id="notifDrawerBackdrop" onclick="toggleNotifDrawer()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden transition-opacity"></div>
+    <aside id="notifDrawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="bell-ring" class="w-5 h-5 text-blue-400"></i>
+                <h3 class="font-bold text-base">Centro Notifiche & Azioni</h3>
+            </div>
+            <button onclick="toggleNotifDrawer()" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="p-3 bg-slate-100 border-b border-slate-200 text-xs text-slate-600 flex justify-between items-center">
+            <span>Notifiche per: <strong id="drawerUserLabel" class="text-slate-900">Organizzatore</strong></span>
+            <button onclick="clearReadNotifications()" class="text-blue-600 hover:underline font-medium">Segna tutte lette</button>
+        </div>
+        <div id="notifList" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <!-- Notifiche generate via JS -->
+        </div>
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: NUOVO BRIEFING (Organizzatore)                               -->
+    <!-- ===================================================================== -->
+    <div id="newBriefingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="calendar-plus" class="w-5 h-5 text-blue-400"></i>
+                    Nuovo Evento Briefing
+                </h3>
+                <button onclick="closeNewBriefingModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleCreateBriefing(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Data Briefing</label>
+                    <input type="date" id="newDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Personale Designato</label>
+                    <select id="newPerson" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <!-- Popolato via JS -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Categoria</label>
+                    <select id="newCategory" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="EMERGENZA">Emergenza di Volo / Terra</option>
+                        <option value="IMPIANTO">Impianto Aeromobile</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Titolo Emergenza / Impianto</label>
+                    <input type="text" id="newTopic" required placeholder="Es. HYDRAULIC SYSTEM FAILURE" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-start gap-2.5 text-xs text-blue-800">
+                    <i data-lucide="send" class="w-4 h-4 text-blue-600 shrink-0 mt-0.5"></i>
+                    <p>Alla creazione verrà inviata una <strong>notifica automatica</strong> al militare interessato. In caso di indisponibilità, potrà proporre autonomamente un sostituto senza passare da te.</p>
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeNewBriefingModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">Annulla</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5">
+                        <i data-lucide="bell" class="w-4 h-4"></i>
+                        Inserisci e Notifica
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: PROPONI SOSTITUTO (Flusso Autonomo P2P)                      -->
+    <!-- ===================================================================== -->
+    <div id="swapModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div class="px-6 py-4 bg-purple-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="repeat" class="w-5 h-5 text-purple-300"></i>
+                    Proponi Sostituto (Gestione Autonoma)
+                </h3>
+                <button onclick="closeSwapModal()" class="text-purple-200 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleProposeSwap(event)" class="p-6 space-y-4">
+                <input type="hidden" id="swapEventId">
+                
+                <div id="swapEventSummary" class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-sm space-y-1">
+                    <!-- Dettagli evento -->
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Seleziona Collega Sostituto</label>
+                    <select id="swapSubstituteSelect" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none">
+                        <!-- Elenco colleghi escluso l'attuale -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Motivazione / Note per il collega</label>
+                    <textarea id="swapReason" rows="2" required placeholder="Es. Impegno operativo / Licenza programmata, riesci a coprirmi?" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"></textarea>
+                </div>
+
+                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100 flex items-start gap-2.5 text-xs text-purple-900">
+                    <i data-lucide="zap" class="w-4 h-4 text-purple-600 shrink-0 mt-0.5"></i>
+                    <p><strong>Flusso diretto senza supervisore:</strong> La richiesta verrà notificata direttamente al collega scelto. Se accetta, il calendario si aggiornerà automaticamente a suo nome.</p>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeSwapModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">Annulla</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        Invia Richiesta al Collega
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 3: DETTAGLIO EVENTO & LOG STORICO                               -->
+    <!-- ===================================================================== -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div class="px-6 py-4 bg-slate-800 text-white flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5 text-blue-400"></i>
+                    Scheda Briefing & Tracciabilità
+                </h3>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="detailModalContent" class="p-6 space-y-4">
+                <!-- Contenuto dinamico -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container per feedback non invasivo -->
+    <div id="toastContainer" class="fixed bottom-16 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ===================================================================== -->
+    <!-- JAVASCRIPT LOGIC                                                      -->
+    <!-- ===================================================================== -->
+    <script>
+        // 1. DATASET COMPLETO ESTRATTO DAL DOCUMENTO ALLEGATO
+        const rawBriefingData = [
+            { date: "2026-09-18", person: "CAP. GALLERI", topic: "APU BAY FIRE IN FLIGHT" },
+            { date: "2026-09-25", person: "M2 LAMBERTI", topic: "Impianto carburante" },
+            { date: "2026-10-30", person: "CAP. CANTONI", topic: "ENGINE BAY FIRE IN FLIGHT + TEC" },
+            { date: "2026-11-06", person: "M2 TADDEO", topic: "Impianto idraulico" },
+            { date: "2026-11-13", person: "TEN FIUME", topic: "FUMES, SMOKE AND/OR FIRE IN COCKPIT/CABIN" },
+            { date: "2026-11-20", person: "M2 NAPOLITANO", topic: "Impianto rotori e trasmissione" },
+            { date: "2026-11-27", person: "STEN VOLPE", topic: "TRIPLE ENGINE FAILURE IN FLIGHT" },
+            { date: "2026-12-04", person: "M2 SALZILLO", topic: "Impianto APU" },
+            { date: "2026-12-11", person: "STEN MONFORTE", topic: "ENGINE FAIL IN FLIGHT + TEC" },
+            { date: "2026-12-18", person: "AC PIACENTINI", topic: "Impianto avionica e comunicazioni" },
+            { date: "2027-01-08", person: "CAP PICCIRILLO", topic: "DOUBLE ENGINE FAIL IN FLIGHT" },
+            { date: "2027-01-15", person: "AC MANGLAVITI", topic: "Impianto condizionamento/ventilazione" },
+            { date: "2027-01-22", person: "CAP TUFANO", topic: "ELECTRICAL ISOLATION PROCEDURE" },
+            { date: "2027-01-29", person: "AC RUZZI", topic: "Impianto motore" },
+            { date: "2027-02-05", person: "CAP. MATRONE", topic: "ENGINE OIL PRESS LOW" },
+            { date: "2027-02-12", person: "AC CARANNANTE", topic: "Impianto carrello" },
+            { date: "2027-02-19", person: "CAP SANDHU", topic: "MGB & IGB OIL PRESS LOW" },
+            { date: "2027-02-26", person: "M2 TURINO", topic: "Impianto anti-incendio/estinguente" },
+            { date: "2027-03-26", person: "CAP FRASCHINI", topic: "MGB OIL TEMP HIGH" },
+            { date: "2027-04-02", person: "M2 CAPUTO", topic: "Impianto elettrico" },
+            { date: "2027-04-09", person: "CAP. BUCCHIONI", topic: "FAILUIRE OF RIPS" },
+            { date: "2027-04-16", person: "M2 TADDEO", topic: "Impianto idraulico" },
+            { date: "2027-04-23", person: "STEN TOMBARI", topic: "TAIL ROTOR FAILURES" },
+            { date: "2027-04-30", person: "M2 LAMBERTI", topic: "Impianto carburante" },
+            { date: "2027-05-07", person: "CAP. MONTELEONE", topic: "DOUBLE AC GEN FAILURE" },
+            { date: "2027-05-14", person: "M2 NAPOLITANO", topic: "Impianto rotori e trasmissione" },
+            { date: "2027-05-21", person: "CAP. GALLERI", topic: "SEVERE VIBRATION" },
+            { date: "2027-05-28", person: "M2 SALZILLO", topic: "Impianto APU" },
+            { date: "2027-06-04", person: "CAP. PICCIRILLO", topic: "FLYING CONTROL MALFUNCTION + COLLECTIVE STIFF" },
+            { date: "2027-06-11", person: "AC PIACENTINI", topic: "Impianto avionica e comunicazioni" },
+            { date: "2027-06-18", person: "CAP. TUFANO", topic: "LIGHTNING STRIKE" },
+            { date: "2027-06-25", person: "AC MANGLAVITI", topic: "Impianto condizionamento/ventilazione" },
+            { date: "2027-07-02", person: "CAP. CANTONI", topic: "MALFUNCTION OF ENGINE BLEED" },
+            { date: "2027-07-09", person: "AC RUZZI", topic: "Impianto motore" },
+            { date: "2027-07-16", person: "TEN FIUME", topic: "ASSOCITADE GENERATOR DISCONNECTED FROM BUSBAR" },
+            { date: "2027-07-23", person: "AC CARANNANTE", topic: "Impianto carrello" },
+            { date: "2027-07-30", person: "STEN MONFORTE", topic: "AMS MISMATCH" },
+            { date: "2027-08-06", person: "M2 TURINO", topic: "Impianto anti-incendio/estinguente" },
+            { date: "2027-08-13", person: "STEN VOLPE", topic: "ACSR COMPUTER FAILURE" },
+            { date: "2027-08-20", person: "M2 CAPUTO", topic: "Impianto elettrico" },
+            { date: "2027-08-27", person: "CAP MATRONE", topic: "MALFUNCTION OF ANY THE SWITCHES FEEDING THE AFCS" },
+            { date: "2027-09-03", person: "M2 TADDEO", topic: "Impianto idraulico" },
+            { date: "2027-09-10", person: "CAP. SANDHU", topic: "SEVERE ICING DETECTED" },
+            { date: "2027-09-17", person: "M2 LAMBERTI", topic: "Impianto carburante" },
+            { date: "2027-09-24", person: "CAP. FRASCHINI", topic: "APU BAY FIRE ON GROUND" },
+            { date: "2027-10-01", person: "M2 NAPOLITANO", topic: "Impianto rotori e trasmissione" },
+            { date: "2027-10-08", person: "CAP. BUCCHIONI", topic: "ENGINE BAY FIRE ON GROUND" }
+        ];
+
+        // Normalizzazione nomi (es. rimuove punti incoerenti come "CAP." vs "CAP" per raggruppare la stessa persona)
+        function normalizePersonName(name) {
+            return name.replace(/^CAP\.\s+/i, 'CAP. ').replace(/^CAP\s+/i, 'CAP. ').trim();
+        }
+
+        // 2. STATO DELL'APPLICAZIONE
+        let currentUser = "ORGANIZZATORE"; // "ORGANIZZATORE" oppure nome normalizzato del militare
+        let currentView = "list"; // "list" | "calendar"
+        let calendarYear = 2026;
+        let calendarMonth = 8; // 0-indexed: 8 = Settembre
+
+        // Costruzione array eventi strutturato
+        let events = rawBriefingData.map((item, index) => {
+            const normPerson = normalizePersonName(item.person);
+            const isImpianto = item.topic.toLowerCase().startsWith("impianto");
+            // Impostiamo alcuni stati iniziali realistici per mostrare subito il funzionamento
+            let initialStatus = "NOTIFIED";
+            if (index < 4) initialStatus = "CONFIRMED";
+            
+            return {
+                id: `evt-${index + 1}`,
+                date: item.date,
+                assignee: normPerson,
+                originalAssignee: normPerson,
+                topic: item.topic,
+                category: isImpianto ? "IMPIANTO" : "EMERGENZA",
+                status: initialStatus, // "NOTIFIED", "CONFIRMED", "SWAP_PROPOSED"
+                proposedSubstitute: null,
+                swapReason: null,
+                history: [
+                    {
+                        timestamp: "Pianificazione Iniziale",
+                        text: `Briefing assegnato a ${normPerson} e notifica inviata.`
+                    },
+                    ...(initialStatus === "CONFIRMED" ? [{
+                        timestamp: "Confermato",
+                        text: `${normPerson} ha confermato la disponibilità.`
+                    }] : [])
+                ]
+            };
+        });
+
+        // Elenco unico ordinato del personale
+        const personnelList = [...new Set(events.map(e => e.assignee))].sort((a, b) => {
+            // Ordina per cognome (ultima parola)
+            const surA = a.split(' ').pop();
+            const surB = b.split(' ').pop();
+            return surA.localeCompare(surB);
+        });
+
+        // Sistema Notifiche In-App
+        let notifications = [];
+
+        function seedInitialNotifications() {
+            events.forEach(ev => {
+                if (ev.status === "NOTIFIED") {
+                    notifications.push({
+                        id: `notif-init-${ev.id}`,
+                        recipient: ev.assignee,
+                        eventId: ev.id,
+                        type: "ASSIGNMENT",
+                        title: "Nuovo Briefing Assegnato",
+                        message: `Sei stato designato per il briefing "${ev.topic}" del ${formatDateIT(ev.date)}. Conferma o proponi un sostituto.`,
+                        read: false,
+                        timestamp: "Da pianificazione"
+                    });
+                }
+            });
+        }
+
+        // 3. INIZIALIZZAZIONE UI
+        function initApp() {
+            seedInitialNotifications();
+            populateSelectors();
+            renderApp();
+            lucide.createIcons();
+        }
+
+        function populateSelectors() {
+            const roleSel = document.getElementById("roleSelector");
+            const filterPersonSel = document.getElementById("filterPerson");
+            const newPersonSel = document.getElementById("newPerson");
+
+            // Role selector
+            roleSel.innerHTML = `<option value="ORGANIZZATORE">👑 Organizzatore (Admin)</option>`;
+            personnelList.forEach(p => {
+                roleSel.innerHTML += `<option value="${p}">👤 ${p}</option>`;
+            });
+
+            roleSel.addEventListener("change", (e) => {
+                currentUser = e.target.value;
+                updateUserContextBanner();
+                renderApp();
+                showToast(`Identità cambiata in: ${currentUser}`, "info");
+            });
+
+            // Filter & New Modal person selectors
+            personnelList.forEach(p => {
+                filterPersonSel.innerHTML += `<option value="${p}">${p}</option>`;
+                newPersonSel.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+        }
+
+        function updateUserContextBanner() {
+            const bannerText = document.getElementById("userContextText");
+            const drawerLabel = document.getElementById("drawerUserLabel");
+            drawerLabel.textContent = currentUser;
+
+            if (currentUser === "ORGANIZZATORE") {
+                bannerText.innerHTML = `Stai operando come <strong>Organizzatore</strong>. Puoi creare nuovi briefing con notifica automatica. Le sostituzioni avvengono autonomamente tra colleghi.`;
+            } else {
+                const myEventsCount = events.filter(e => e.assignee === currentUser).length;
+                const pendingIncomingSwaps = events.filter(e => e.status === "SWAP_PROPOSED" && e.proposedSubstitute === currentUser).length;
+                bannerText.innerHTML = `Accesso personale: <strong>${currentUser}</strong> — Hai <strong>${myEventsCount}</strong> briefing assegnati` + 
+                    (pendingIncomingSwaps > 0 ? ` e <span class="bg-purple-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">${pendingIncomingSwaps} richieste di cambio turno</span>!` : `.`);
+            }
+        }
+
+        // 4. LOGICA AZIONI (CONFERMA, PROPOSTA SOSTITUTO, ACCETTA/RIFIUTA SOSTITUZIONE, CREA EVENTO)
+        
+        // L'interessato conferma la propria presenza
+        function confirmBriefing(eventId) {
+            const ev = events.find(e => e.id === eventId);
+            if (!ev) return;
+
+            ev.status = "CONFIRMED";
+            ev.history.push({
+                timestamp: getNowString(),
+                text: `${ev.assignee} ha confermato la propria disponibilità al briefing.`
+            });
+
+            // Segna notifica come letta
+            notifications.forEach(n => {
+                if (n.eventId === eventId && n.recipient === ev.assignee) n.read = true;
+            });
+
+            // Notifica informativa all'organizzatore (solo log passivo)
+            notifications.unshift({
+                id: `notif-${Date.now()}`,
+                recipient: "ORGANIZZATORE",
+                eventId: ev.id,
+                type: "INFO",
+                title: "Briefing Confermato",
+                message: `${ev.assignee} ha confermato il briefing del ${formatDateIT(ev.date)} (${ev.topic}).`,
+                read: false,
+                timestamp: "Adesso"
+            });
+
+            renderApp();
+            showToast("Disponibilità confermata con successo!", "success");
+        }
+
+        // Apertura modal per proporre un sostituto
+        function openSwapModal(eventId) {
+            const ev = events.find(e => e.id === eventId);
+            if (!ev) return;
+
+            document.getElementById("swapEventId").value = ev.id;
+            document.getElementById("swapReason").value = "";
+            document.getElementById("swapEventSummary").innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="font-mono-tech text-xs font-bold text-slate-500">${formatDateIT(ev.date)}</span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">${ev.category}</span>
+                </div>
+                <p class="font-bold text-slate-800 mt-1">${ev.topic}</p>
+                <p class="text-xs text-slate-500">Titolare attuale: <strong>${ev.assignee}</strong></p>
+            `;
+
+            const subSelect = document.getElementById("swapSubstituteSelect");
+            subSelect.innerHTML = `<option value="">-- Scegli un collega --</option>`;
+            personnelList.forEach(p => {
+                if (p !== ev.assignee) {
+                    subSelect.innerHTML += `<option value="${p}">${p}</option>`;
+                }
+            });
+
+            document.getElementById("swapModal").classList.remove("hidden");
+        }
+
+        function closeSwapModal() {
+            document.getElementById("swapModal").classList.add("hidden");
+        }
+
+        // Invio proposta di sostituzione diretta al collega (senza passare dall'admin)
+        function handleProposeSwap(e) {
+            e.preventDefault();
+            const eventId = document.getElementById("swapEventId").value;
+            const substitute = document.getElementById("swapSubstituteSelect").value;
+            const reason = document.getElementById("swapReason").value.trim();
+
+            if (!substitute) return;
+
+            const ev = events.find(item => item.id === eventId);
+            if (!ev) return;
+
+            ev.status = "SWAP_PROPOSED";
+            ev.proposedSubstitute = substitute;
+            ev.swapReason = reason;
+            ev.history.push({
+                timestamp: getNowString(),
+                text: `${ev.assignee} ha chiesto sostituzione diretta a ${substitute}. Motivo: "${reason}"`
+            });
+
+            // Crea notifica diretta per il collega sostituto
+            notifications.unshift({
+                id: `notif-swap-${Date.now()}`,
+                recipient: substitute,
+                eventId: ev.id,
+                type: "SWAP_REQUEST",
+                title: `Richiesta Sostituzione da ${ev.assignee}`,
+                message: `${ev.assignee} ti chiede di sostituirlo per "${ev.topic}" il ${formatDateIT(ev.date)}. Motivo: "${reason}"`,
+                read: false,
+                timestamp: "Adesso"
+            });
+
+            closeSwapModal();
+            renderApp();
+            showToast(`Richiesta inviata direttamente a ${substitute}!`, "purple");
+        }
+
+        // Il collega sostituto ACCETTA lo scambio
+        function acceptSwap(eventId) {
+            const ev = events.find(e => e.id === eventId);
+            if (!ev || ev.status !== "SWAP_PROPOSED") return;
+
+            const oldPerson = ev.assignee;
+            const newPerson = ev.proposedSubstitute;
+
+            ev.assignee = newPerson;
+            ev.status = "CONFIRMED";
+            ev.proposedSubstitute = null;
+            ev.swapReason = null;
+
+            ev.history.push({
+                timestamp: getNowString(),
+                text: `✅ ${newPerson} ha ACCETTATO la sostituzione di ${oldPerson}. Titolarità aggiornata automaticamente.`
+            });
+
+            // Notifica al collega che aveva chiesto il cambio
+            notifications.unshift({
+                id: `notif-swap-ok-${Date.now()}`,
+                recipient: oldPerson,
+                eventId: ev.id,
+                type: "INFO",
+                title: "Sostituzione Accettata!",
+                message: `${newPerson} ha accettato di sostituirti per il briefing del ${formatDateIT(ev.date)} (${ev.topic}).`,
+                read: false,
+                timestamp: "Adesso"
+            });
+
+            // Notifica automatica di aggiornamento all'Organizzatore (nessuna approvazione richiesta)
+            notifications.unshift({
+                id: `notif-admin-swap-${Date.now()}`,
+                recipient: "ORGANIZZATORE",
+                eventId: ev.id,
+                type: "INFO",
+                title: "Cambio Turno Autonomo Completato",
+                message: `${newPerson} ha rilevato il briefing del ${formatDateIT(ev.date)} al posto di ${oldPerson}.`,
+                read: false,
+                timestamp: "Adesso"
+            });
+
+            // Segna letta la notifica di richiesta
+            notifications.forEach(n => {
+                if (n.eventId === eventId && n.recipient === newPerson && n.type === "SWAP_REQUEST") n.read = true;
+            });
+
+            renderApp();
+            showToast(`Hai accettato il briefing! Calendario aggiornato a tuo nome.`, "success");
+        }
+
+        // Il collega sostituto RIFIUTA lo scambio
+        function declineSwap(eventId) {
+            const ev = events.find(e => e.id === eventId);
+            if (!ev || ev.status !== "SWAP_PROPOSED") return;
+
+            const requester = ev.assignee;
+            const decliner = ev.proposedSubstitute;
+
+            ev.status = "NOTIFIED";
+            ev.proposedSubstitute = null;
+            ev.swapReason = null;
+
+            ev.history.push({
+                timestamp: getNowString(),
+                text: `❌ ${decliner} non è disponibile per la sostituzione. Il briefing resta a carico di ${requester}.`
+            });
+
+            // Notifica al richiedente che deve cercare un altro collega
+            notifications.unshift({
+                id: `notif-swap-no-${Date.now()}`,
+                recipient: requester,
+                eventId: ev.id,
+                type: "ALERT",
+                title: "Sostituzione Rifiutata",
+                message: `${decliner} non può sostituirti il ${formatDateIT(ev.date)}. Puoi proporre un altro collega.`,
+                read: false,
+                timestamp: "Adesso"
+            });
+
+            notifications.forEach(n => {
+                if (n.eventId === eventId && n.recipient === decliner && n.type === "SWAP_REQUEST") n.read = true;
+            });
+
+            renderApp();
+            showToast(`Richiesta declinata. ${requester} è stato avvisato.`, "info");
+        }
+
+        // Creazione nuovo briefing (Organizzatore)
+        function openNewBriefingModal() {
+            document.getElementById("newDate").value = "2026-10-02";
+            document.getElementById("newTopic").value = "";
+            document.getElementById("newBriefingModal").classList.remove("hidden");
+        }
+
+        function closeNewBriefingModal() {
+            document.getElementById("newBriefingModal").classList.add("hidden");
+        }
+
+        function handleCreateBriefing(e) {
+            e.preventDefault();
+            const date = document.getElementById("newDate").value;
+            const person = document.getElementById("newPerson").value;
+            const category = document.getElementById("newCategory").value;
+            const topic = document.getElementById("newTopic").value.trim();
+
+            const newEv = {
+                id: `evt-${Date.now()}`,
+                date: date,
+                assignee: person,
+                originalAssignee: person,
+                topic: topic,
+                category: category,
+                status: "NOTIFIED",
+                proposedSubstitute: null,
+                swapReason: null,
+                history: [
+                    {
+                        timestamp: getNowString(),
+                        text: `Nuovo briefing inserito dall'Organizzatore. Assegnato a ${person} con notifica immediata.`
+                    }
+                ]
+            };
+
+            events.push(newEv);
+            // Riordina cronologicamente
+            events.sort((a, b) => a.date.localeCompare(b.date));
+
+            // Invia notifica all'interessato
+            notifications.unshift({
+                id: `notif-new-${Date.now()}`,
+                recipient: person,
+                eventId: newEv.id,
+                type: "ASSIGNMENT",
+                title: "Nuovo Briefing Pianificato",
+                message: `Sei stato assegnato a "${topic}" in data ${formatDateIT(date)}. Conferma o proponi sostituto.`,
+                read: false,
+                timestamp: "Adesso"
+            });
+
+            closeNewBriefingModal();
+            renderApp();
+            showToast(`Briefing inserito e notificato a ${person}!`, "success");
+        }
+
+        // 5. RENDERING INTERFACCIA
+        function renderApp() {
+            updateStats();
+            updateNotificationsUI();
+            
+            const filteredEvents = getFilteredEvents();
+            if (currentView === "list") {
+                renderListView(filteredEvents);
+            } else if (currentView === "calendar") {
+                renderCalendarView(filteredEvents);
+            } else if (currentView === "stats") {
+                renderPersonnelStatsView();
+            }
+            lucide.createIcons();
+        }
+
+        function getFilteredEvents() {
+            const search = document.getElementById("searchInput").value.toLowerCase();
+            const person = document.getElementById("filterPerson").value;
+            const category = document.getElementById("filterCategory").value;
+            const status = document.getElementById("filterStatus").value;
+
+            return events.filter(ev => {
+                const matchSearch = ev.topic.toLowerCase().includes(search) || 
+                                    ev.assignee.toLowerCase().includes(search) ||
+                                    formatDateIT(ev.date).includes(search);
+                const matchPerson = person === "ALL" || ev.assignee === person || ev.proposedSubstitute === person;
+                const matchCategory = category === "ALL" || ev.category === category;
+                const matchStatus = status === "ALL" || ev.status === status;
+
+                return matchSearch && matchPerson && matchCategory && matchStatus;
+            });
+        }
+
+        function updateStats() {
+            document.getElementById("statTotal").textContent = events.length;
+            document.getElementById("statConfirmed").textContent = events.filter(e => e.status === "CONFIRMED").length;
+            document.getElementById("statPending").textContent = events.filter(e => e.status === "NOTIFIED").length;
+            document.getElementById("statSwap").textContent = events.filter(e => e.status === "SWAP_PROPOSED" || e.assignee !== e.originalAssignee).length;
+        }
+
+        // Vista Lista Cronologica Raggruppata per Mese
+        function renderListView(filteredEvents) {
+            const container = document.getElementById("listViewContainer");
+            
+            if (filteredEvents.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl p-12 text-center border border-slate-200">
+                        <i data-lucide="calendar-off" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+                        <h3 class="text-base font-bold text-slate-700">Nessun briefing trovato</h3>
+                        <p class="text-sm text-slate-500 mt-1">Prova a modificare i filtri di ricerca.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Raggruppa per YYYY-MM
+            const grouped = {};
+            filteredEvents.forEach(ev => {
+                const ym = ev.date.substring(0, 7);
+                if (!grouped[ym]) grouped[ym] = [];
+                grouped[ym].push(ev);
+            });
+
+            let html = "";
+            Object.keys(grouped).sort().forEach(ym => {
+                const [year, month] = ym.split("-");
+                const monthName = new Date(year, parseInt(month) - 1, 1).toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+
+                html += `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider capitalize">${monthName}</h3>
+                            <span class="text-xs font-medium text-slate-500">${grouped[ym].length} briefing</span>
+                        </div>
+                        <div class="divide-y divide-slate-100">
+                            ${grouped[ym].map(ev => renderEventRow(ev)).join("")}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderEventRow(ev) {
+            const isEmergency = ev.category === "EMERGENZA";
+            const catBadge = isEmergency 
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">⚠️ EMERGENZA</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">⚙️ IMPIANTO</span>`;
+
+            let statusBadge = "";
+            if (ev.status === "CONFIRMED") {
+                statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Confermato</span>`;
+            } else if (ev.status === "NOTIFIED") {
+                statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> Notificato</span>`;
+            } else if (ev.status === "SWAP_PROPOSED") {
+                statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800"><i data-lucide="repeat" class="w-3.5 h-3.5"></i> Cambio con ${ev.proposedSubstitute}</span>`;
+            }
+
+            // Controllo permessi azione per l'utente simulato
+            const isAssignee = currentUser === ev.assignee;
+            const isProposedSub = currentUser === ev.proposedSubstitute;
+            const isAdmin = currentUser === "ORGANIZZATORE";
+
+            let actionButtons = "";
+
+            // Se l'utente corrente è l'assegnatario del briefing
+            if (isAssignee) {
+                if (ev.status === "NOTIFIED") {
+                    actionButtons += `
+                        <button onclick="confirmBriefing('${ev.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center gap-1">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i> Conferma
+                        </button>
+                        <button onclick="openSwapModal('${ev.id}')" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center gap-1">
+                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Non posso / Sostituto
+                        </button>
+                    `;
+                } else if (ev.status === "CONFIRMED") {
+                    actionButtons += `
+                        <button onclick="openSwapModal('${ev.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-purple-100 text-slate-700 hover:text-purple-800 border border-slate-300 text-xs font-medium rounded-lg transition flex items-center gap-1">
+                            <i data-lucide="repeat" class="w-3.5 h-3.5"></i> Chiedi Sostituzione
+                        </button>
+                    `;
+                } else if (ev.status === "SWAP_PROPOSED") {
+                    actionButtons += `<span class="text-xs text-purple-700 italic">In attesa di ${ev.proposedSubstitute}...</span>`;
+                }
+            }
+
+            // Se l'utente corrente è il sostituto proposto da un collega
+            if (isProposedSub && ev.status === "SWAP_PROPOSED") {
+                actionButtons += `
+                    <div class="flex items-center gap-2 bg-purple-50 p-1.5 rounded-lg border border-purple-200">
+                        <span class="text-xs font-semibold text-purple-900 px-1">Richiesta per te:</span>
+                        <button onclick="acceptSwap('${ev.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md transition">
+                            Accetta Turno
+                        </button>
+                        <button onclick="declineSwap('${ev.id}')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-md transition">
+                            Rifiuta
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Pulsante rapido per simulare l'utente interessato se sei Organizzatore
+            if (isAdmin && ev.status !== "CONFIRMED") {
+                const targetToSimulate = ev.status === "SWAP_PROPOSED" ? ev.proposedSubstitute : ev.assignee;
+                actionButtons += `
+                    <button onclick="quickSwitchUser('${targetToSimulate}')" title="Simula risposta di ${targetToSimulate}" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition flex items-center gap-1">
+                        <i data-lucide="user-check" class="w-3.5 h-3.5"></i> Simula ${targetToSimulate.split(' ').pop()}
+                    </button>
+                `;
+            }
+
+            const swappedNote = ev.assignee !== ev.originalAssignee 
+                ? `<span class="text-[11px] text-purple-600 font-medium block">(Sostituisce ${ev.originalAssignee})</span>` 
+                : "";
+
+            return `
+                <div class="p-4 sm:px-6 hover:bg-slate-50/80 transition flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div class="flex items-start sm:items-center gap-4">
+                        <!-- Data Badge -->
+                        <div class="bg-slate-900 text-white rounded-xl px-3 py-2 text-center min-w-[88px] shrink-0 shadow-xs">
+                            <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">${getMonthShort(ev.date)}</div>
+                            <div class="text-lg font-bold font-mono-tech leading-none my-0.5">${ev.date.split('-')[2]}</div>
+                            <div class="text-[10px] text-slate-400 font-mono-tech">${ev.date.split('-')[0]}</div>
+                        </div>
+
+                        <!-- Dettagli Argomento & Militare -->
+                        <div class="space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                ${catBadge}
+                                <span class="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200 flex items-center gap-1">
+                                    <i data-lucide="user" class="w-3 h-3 text-slate-500"></i>
+                                    ${ev.assignee}
+                                </span>
+                                ${swappedNote}
+                            </div>
+                            <h4 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${ev.topic}</h4>
+                            ${ev.status === "SWAP_PROPOSED" ? `<p class="text-xs text-purple-700 bg-purple-50 inline-block px-2 py-0.5 rounded border border-purple-100">💬 "${ev.swapReason}"</p>` : ""}
+                        </div>
+                    </div>
+
+                    <!-- Stato & Azioni -->
+                    <div class="flex flex-wrap items-center justify-between lg:justify-end gap-3 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                        ${statusBadge}
+                        <div class="flex flex-wrap items-center gap-2">
+                            ${actionButtons}
+                            <button onclick="openDetailModal('${ev.id}')" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition" title="Storico e Dettagli">
+                                <i data-lucide="history" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function quickSwitchUser(personName) {
+            const roleSel = document.getElementById("roleSelector");
+            roleSel.value = personName;
+            currentUser = personName;
+            updateUserContextBanner();
+            renderApp();
+            showToast(`Ora stai agendo come ${personName}`, "info");
+        }
+
+        // 6. VISTA CALENDARIO MENSILE E SWITCHER VISTE
+        function setView(view) {
+            currentView = view;
+            const listContainer = document.getElementById("listViewContainer");
+            const calContainer = document.getElementById("calendarViewContainer");
+            const statsContainer = document.getElementById("statsViewContainer");
+            
+            const btnList = document.getElementById("btnViewList");
+            const btnCal = document.getElementById("btnViewCalendar");
+            const btnStats = document.getElementById("btnViewStats");
+
+            const activeClass = "px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 bg-white text-slate-800 shadow-sm transition";
+            const inactiveClass = "px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition";
+
+            listContainer.classList.add("hidden");
+            calContainer.classList.add("hidden");
+            statsContainer.classList.add("hidden");
+
+            btnList.className = inactiveClass;
+            btnCal.className = inactiveClass;
+            btnStats.className = inactiveClass;
+
+            if (view === "list") {
+                listContainer.classList.remove("hidden");
+                btnList.className = activeClass;
+            } else if (view === "calendar") {
+                calContainer.classList.remove("hidden");
+                btnCal.className = activeClass;
+            } else if (view === "stats") {
+                statsContainer.classList.remove("hidden");
+                btnStats.className = activeClass;
+            }
+            renderApp();
+        }
+
+        function renderPersonnelStatsView() {
+            const container = document.getElementById("personnelStatsList");
+            const sortBy = document.getElementById("statsSortSelect")?.value || "COUNT_DESC";
+            const search = document.getElementById("searchInput").value.toLowerCase();
+            const personFilter = document.getElementById("filterPerson").value;
+
+            const statsData = personnelList
+                .filter(p => (personFilter === "ALL" || p === personFilter) && p.toLowerCase().includes(search))
+                .map(person => {
+                    const personEvents = events.filter(e => e.assignee === person);
+                    const confirmed = personEvents.filter(e => e.status === "CONFIRMED").length;
+                    const pending = personEvents.filter(e => e.status !== "CONFIRMED").length;
+                    const emergencies = personEvents.filter(e => e.category === "EMERGENZA").length;
+                    const systems = personEvents.filter(e => e.category === "IMPIANTO").length;
+                    const takenOver = personEvents.filter(e => e.originalAssignee !== person).length;
+
+                    return {
+                        person,
+                        total: personEvents.length,
+                        confirmed,
+                        pending,
+                        emergencies,
+                        systems,
+                        takenOver,
+                        events: personEvents
+                    };
+                });
+
+            if (sortBy === "COUNT_DESC") {
+                statsData.sort((a, b) => b.total - a.total || a.person.localeCompare(b.person));
+            } else if (sortBy === "CONFIRMED_DESC") {
+                statsData.sort((a, b) => b.confirmed - a.confirmed || b.total - a.total);
+            } else {
+                statsData.sort((a, b) => {
+                    const surA = a.person.split(' ').pop();
+                    const surB = b.person.split(' ').pop();
+                    return surA.localeCompare(surB);
+                });
+            }
+
+            if (statsData.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-sm text-slate-500">Nessun militare corrisponde ai filtri selezionati.</div>`;
+                return;
+            }
+
+            const maxTotal = Math.max(...statsData.map(s => s.total), 1);
+
+            container.innerHTML = statsData.map(stat => {
+                const confirmedPct = Math.round((stat.confirmed / maxTotal) * 100);
+                const pendingPct = Math.round((stat.pending / maxTotal) * 100);
+                const isMe = currentUser === stat.person;
+
+                return `
+                    <div class="p-4 sm:px-6 hover:bg-slate-50/80 transition flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${isMe ? 'bg-blue-50/40' : ''}">
+                        <!-- Nominativo & Badge -->
+                        <div class="min-w-[230px]">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-900 text-sm">${stat.person}</span>
+                                ${isMe ? `<span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold">TU</span>` : ''}
+                                ${stat.takenOver > 0 ? `<span class="text-[10px] bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full font-semibold" title="Sostituzioni effettuate">+${stat.takenOver} subentro</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                                <span class="text-rose-600 font-medium">⚠️ ${stat.emergencies} Emergenze</span>
+                                <span>•</span>
+                                <span class="text-sky-600 font-medium">⚙️ ${stat.systems} Impianti</span>
+                            </div>
+                        </div>
+
+                        <!-- Barra Progressiva Visuale -->
+                        <div class="flex-1 max-w-md w-full">
+                            <div class="flex justify-between text-[11px] mb-1 font-medium">
+                                <span class="text-emerald-700">${stat.confirmed} Confermati</span>
+                                <span class="text-amber-600">${stat.pending} In attesa</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
+                                <div style="width: ${confirmedPct}%" class="bg-emerald-500 h-full transition-all duration-300" title="Confermati: ${stat.confirmed}"></div>
+                                <div style="width: ${pendingPct}%" class="bg-amber-400 h-full transition-all duration-300" title="In attesa: ${stat.pending}"></div>
+                            </div>
+                        </div>
+
+                        <!-- Contatore Totale & Azione Filtro -->
+                        <div class="flex items-center justify-between lg:justify-end gap-4 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                            <div class="text-right">
+                                <span class="text-2xl font-bold font-mono-tech text-slate-800">${stat.total}</span>
+                                <span class="text-xs text-slate-500 block leading-none">briefing totali</span>
+                            </div>
+                            <button onclick="filterByPersonAndShowList('${stat.person}')" class="px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition flex items-center gap-1">
+                                <span>Vedi turni</span>
+                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function filterByPersonAndShowList(personName) {
+            document.getElementById("filterPerson").value = personName;
+            setView("list");
+        }
+
+        function changeCalendarMonth(delta) {
+            calendarMonth += delta;
+            if (calendarMonth > 11) {
+                calendarMonth = 0;
+                calendarYear++;
+            } else if (calendarMonth < 0) {
+                calendarMonth = 11;
+                calendarYear--;
+            }
+            renderApp();
+        }
+
+        function renderCalendarView(filteredEvents) {
+            const titleEl = document.getElementById("calendarMonthTitle");
+            const gridEl = document.getElementById("calendarGrid");
+
+            const firstDay = new Date(calendarYear, calendarMonth, 1);
+            titleEl.textContent = firstDay.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+
+            // Giorno della settimana (0=Dom -> trasformiamo in 0=Lun)
+            let startWeekday = firstDay.getDay() - 1;
+            if (startWeekday < 0) startWeekday = 6;
+
+            const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+            let cellsHTML = "";
+
+            // Celle vuote iniziali
+            for (let i = 0; i < startWeekday; i++) {
+                cellsHTML += `<div class="bg-slate-50/60 p-2 min-h-[100px]"></div>`;
+            }
+
+            // Giorni del mese
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const dayEvents = filteredEvents.filter(e => e.date === dateStr);
+
+                cellsHTML += `
+                    <div class="p-2 min-h-[110px] bg-white hover:bg-slate-50 transition flex flex-col gap-1">
+                        <div class="text-xs font-mono-tech font-semibold ${dayEvents.length > 0 ? 'text-blue-600' : 'text-slate-400'}">${day}</div>
+                        <div class="space-y-1">
+                            ${dayEvents.map(ev => {
+                                const bgClass = ev.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-900 border-emerald-300" :
+                                                ev.status === "SWAP_PROPOSED" ? "bg-purple-100 text-purple-900 border-purple-300" :
+                                                "bg-amber-100 text-amber-900 border-amber-300";
+                                return `
+                                    <button onclick="openDetailModal('${ev.id}')" class="w-full text-left p-1.5 rounded border text-[11px] leading-tight ${bgClass} hover:opacity-80 transition">
+                                        <div class="font-bold truncate">${ev.assignee}</div>
+                                        <div class="truncate opacity-85">${ev.topic}</div>
+                                    </button>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                `;
+            }
+
+            gridEl.innerHTML = cellsHTML;
+        }
+
+        // 7. GESTIONE NOTIFICHE & MODAL DETTAGLI
+        function toggleNotifDrawer() {
+            const drawer = document.getElementById("notifDrawer");
+            const backdrop = document.getElementById("notifDrawerBackdrop");
+            const isClosed = drawer.classList.contains("translate-x-full");
+
+            if (isClosed) {
+                drawer.classList.remove("translate-x-full");
+                backdrop.classList.remove("hidden");
+            } else {
+                drawer.classList.add("translate-x-full");
+                backdrop.classList.add("hidden");
+            }
+        }
+
+        function updateNotificationsUI() {
+            const userNotifs = notifications.filter(n => n.recipient === currentUser);
+            const unreadCount = userNotifs.filter(n => !n.read).length;
+
+            const badge = document.getElementById("notifBadge");
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove("hidden");
+                badge.classList.add("notification-dot");
+            } else {
+                badge.classList.add("hidden");
+                badge.classList.remove("notification-dot");
+            }
+
+            const listEl = document.getElementById("notifList");
+            if (userNotifs.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                        <p class="text-sm">Nessuna notifica per ${currentUser}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = userNotifs.map(n => {
+                const ev = events.find(e => e.id === n.eventId);
+                let actionArea = "";
+
+                if (ev) {
+                    if (n.type === "ASSIGNMENT" && ev.status === "NOTIFIED" && ev.assignee === currentUser) {
+                        actionArea = `
+                            <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+                                <button onclick="confirmBriefing('${ev.id}'); toggleNotifDrawer();" class="flex-1 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700">Conferma</button>
+                                <button onclick="toggleNotifDrawer(); openSwapModal('${ev.id}');" class="flex-1 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700">Proponi Sostituto</button>
+                            </div>
+                        `;
+                    } else if (n.type === "SWAP_REQUEST" && ev.status === "SWAP_PROPOSED" && ev.proposedSubstitute === currentUser) {
+                        actionArea = `
+                            <div class="flex gap-2 mt-2 pt-2 border-t border-purple-100">
+                                <button onclick="acceptSwap('${ev.id}'); toggleNotifDrawer();" class="flex-1 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700">Accetta Sostituzione</button>
+                                <button onclick="declineSwap('${ev.id}'); toggleNotifDrawer();" class="flex-1 py-1.5 bg-rose-600 text-white text-xs font-semibold rounded-lg hover:bg-rose-700">Rifiuta</button>
+                            </div>
+                        `;
+                    }
+                }
+
+                return `
+                    <div class="p-3.5 rounded-xl border ${n.read ? 'bg-white border-slate-200' : 'bg-blue-50/60 border-blue-200 shadow-xs'}">
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="text-xs font-bold text-slate-900">${n.title}</span>
+                            <span class="text-[10px] text-slate-400 shrink-0">${n.timestamp}</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">${n.message}</p>
+                        ${actionArea}
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function clearReadNotifications() {
+            notifications.forEach(n => {
+                if (n.recipient === currentUser) n.read = true;
+            });
+            renderApp();
+        }
+
+        function openDetailModal(eventId) {
+            const ev = events.find(e => e.id === eventId);
+            if (!ev) return;
+
+            const content = document.getElementById("detailModalContent");
+            content.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono-tech text-sm font-bold text-blue-600">${formatDateIT(ev.date)}</span>
+                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">${ev.category}</span>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-900">${ev.topic}</h4>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm space-y-1">
+                        <p><span class="text-slate-500">Relatore Designato:</span> <strong class="text-slate-900">${ev.assignee}</strong></p>
+                        <p><span class="text-slate-500">Assegnazione Originale:</span> <span class="text-slate-700">${ev.originalAssignee}</span></p>
+                        ${ev.proposedSubstitute ? `<p class="text-purple-700"><span class="text-purple-500">Sostituzione pendente verso:</span> <strong>${ev.proposedSubstitute}</strong> ("${ev.swapReason}")</p>` : ''}
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Registro Eventi & Sostituzioni P2P</h5>
+                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        ${ev.history.map(h => `
+                            <div class="text-xs bg-slate-50 p-2.5 rounded-lg border-l-2 border-blue-500">
+                                <div class="text-[10px] font-mono-tech text-slate-400">${h.timestamp}</div>
+                                <div class="text-slate-700 mt-0.5">${h.text}</div>
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="closeDetailModal()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg hover:bg-slate-700">Chiudi</button>
+                </div>
+            `;
+
+            document.getElementById("detailModal").classList.remove("hidden");
+        }
+
+        function closeDetailModal() {
+            document.getElementById("detailModal").classList.add("hidden");
+        }
+
+        // 8. UTILITY FUNCTIONS
+        function formatDateIT(isoDate) {
+            const [y, m, d] = isoDate.split("-");
+            return `${d}/${m}/${y}`;
+        }
+
+        function getMonthShort(isoDate) {
+            const [y, m, d] = isoDate.split("-");
+            return new Date(y, parseInt(m) - 1, d).toLocaleDateString("it-IT", { month: "short" });
+        }
+
+        function getNowString() {
+            const now = new Date();
+            return now.toLocaleDateString("it-IT") + " " + now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toastContainer");
+            const colors = {
+                success: "bg-emerald-600 text-white",
+                purple: "bg-purple-600 text-white",
+                info: "bg-slate-800 text-white"
+            };
+            const toast = document.createElement("div");
+            toast.className = `${colors[type] || colors.info} px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 shrink-0"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove("translate-y-2", "opacity-0");
+            });
+
+            setTimeout(() => {
+                toast.classList.add("opacity-0", "translate-y-2");
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Avvio applicazione
+        window.addEventListener("DOMContentLoaded", initApp);
+    </script>
+</body>
+</html>
